@@ -1,0 +1,25 @@
+format: ChoreonoidBody
+formatVersion: 1.0
+angleUnit: degree
+name: Building
+links:
+  -
+    name: Building
+    translation: [ 0, 0, 1 ]
+    jointType: free
+    centerOfMass: [ 0, 0, 0 ]
+    mass: 8.0
+    inertia: [
+      0.1, 0,   0,
+      0,   0.1, 0,
+      0,   0,   0.5 ]
+    elements:
+      Shape:
+        geometry:
+          type: Box
+          size: [ 1, 1, 2 ]
+        appearance: &BodyAppearance
+          material:
+            diffuseColor: [ 0.6, 0.7, 0 ]
+            specularColor: [ 0.2, 0.7, 0.2 ]
+            shininess: 0.8
