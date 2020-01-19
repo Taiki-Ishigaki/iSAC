@@ -9,27 +9,26 @@ items:
       name: "World"
       plugin: Body
       class: WorldItem
+      isChecked: true
       data: 
         collisionDetection: false
         collisionDetector: AISTCollisionDetector
-        materialTableFile: "${PROJECT_DIR}/{SHARE}/choreonoid-1.8/default/materials.yaml"
       children: 
         - 
           id: 2
-          name: "Building"
+          name: "Floor"
           plugin: Body
           class: BodyItem
-          isChecked: true
           data: 
-            modelFile: "${PROJECT_DIR}/Building.body"
+            modelFile: "${SHARE}/model/misc/floor.body"
             currentBaseLink: ""
-            rootPosition: [ -2, 3, 1 ]
+            rootPosition: [ 0, 0, -0.1 ]
             rootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             jointPositions: [  ]
-            initialRootPosition: [ 0, 0, 1 ]
+            initialRootPosition: [ 0, 0, -0.1 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
@@ -37,7 +36,7 @@ items:
             zmp: [ 0, 0, 0 ]
             collisionDetection: true
             selfCollisionDetection: false
-            isSceneBodyDraggable: true
+            isSceneBodyDraggable: false
         - 
           id: 3
           name: "Building"
@@ -53,12 +52,13 @@ items:
               0, 1, 0, 
               0, 0, 1 ]
             jointPositions: [  ]
-            initialRootPosition: [ 0, 0, 1 ]
+            initialRootPosition: [ 1, -2, 1 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             zmp: [ 0, 0, 0 ]
+            staticModel: true
             collisionDetection: true
             selfCollisionDetection: false
             isSceneBodyDraggable: true
@@ -67,7 +67,6 @@ items:
           name: "Building"
           plugin: Body
           class: BodyItem
-          isSelected: true
           isChecked: true
           data: 
             modelFile: "${PROJECT_DIR}/Building.body"
@@ -84,6 +83,7 @@ items:
               0, 1, 0, 
               0, 0, 1 ]
             zmp: [ 0, 0, 0 ]
+            staticModel: true
             collisionDetection: true
             selfCollisionDetection: false
             isSceneBodyDraggable: true
@@ -102,12 +102,13 @@ items:
               0, 1, 0, 
               0, 0, 1 ]
             jointPositions: [  ]
-            initialRootPosition: [ 0, 0, 1 ]
+            initialRootPosition: [ 4, -4, 1 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             zmp: [ 0, 0, 0 ]
+            staticModel: true
             collisionDetection: true
             selfCollisionDetection: false
             isSceneBodyDraggable: true
@@ -126,17 +127,43 @@ items:
               0, 1, 0, 
               0, 0, 1 ]
             jointPositions: [  ]
-            initialRootPosition: [ 0, 0, 1 ]
+            initialRootPosition: [ -4, -3, 1 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             zmp: [ 0, 0, 0 ]
+            staticModel: true
             collisionDetection: true
             selfCollisionDetection: false
             isSceneBodyDraggable: true
         - 
           id: 7
+          name: "Building"
+          plugin: Body
+          class: BodyItem
+          isChecked: true
+          data: 
+            modelFile: "${PROJECT_DIR}/Building.body"
+            currentBaseLink: ""
+            rootPosition: [ -2, 3, 1 ]
+            rootAttitude: [ 
+              1, 0, 0, 
+              0, 1, 0, 
+              0, 0, 1 ]
+            jointPositions: [  ]
+            initialRootPosition: [ -2, 3, 1 ]
+            initialRootAttitude: [ 
+              1, 0, 0, 
+              0, 1, 0, 
+              0, 0, 1 ]
+            zmp: [ 0, 0, 0 ]
+            staticModel: true
+            collisionDetection: true
+            selfCollisionDetection: false
+            isSceneBodyDraggable: true
+        - 
+          id: 8
           name: "Tank"
           plugin: Body
           class: BodyItem
@@ -144,14 +171,14 @@ items:
           data: 
             modelFile: "${SHARE}/model/Tank/Tank.body"
             currentBaseLink: ""
-            rootPosition: [ 0.5, -1, 0 ]
+            rootPosition: [ 0.5, -1, 0.106 ]
             rootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             jointDisplacements: [  0.000000,  0.000000 ]
             jointPositions: [  0.000000,  0.000000 ]
-            initialRootPosition: [ 0, 0, 0.106 ]
+            initialRootPosition: [ 0.5, -1, 0.106 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
@@ -161,6 +188,52 @@ items:
             collisionDetection: true
             selfCollisionDetection: false
             isSceneBodyDraggable: true
+          children: 
+            - 
+              id: 9
+              name: "TankController"
+              plugin: Body
+              class: SimpleControllerItem
+              isChecked: true
+              data: 
+                isNoDelayMode: false
+                controllerOptions: ""
+                controller: "/usr/local/lib/choreonoid-1.8/simplecontroller/tank_controller"
+                baseDirectory: "None"
+                reloading: false
+                exportSymbols: false
+                isOldTargetVariableMode: false
+        - 
+          id: 10
+          name: "AISTSimulator"
+          plugin: Body
+          class: AISTSimulatorItem
+          isChecked: true
+          data: 
+            timeStep: 0.001
+            realtimeSync: true
+            recording: "full"
+            timeRangeMode: "Unlimited"
+            timeLength: 180
+            allLinkPositionOutputMode: true
+            deviceStateOutput: true
+            controllerThreads: true
+            recordCollisionData: false
+            controllerOptions: ""
+            dynamicsMode: "Forward dynamics"
+            integrationMode: "Runge Kutta"
+            gravity: [ 0, 0, -9.80665 ]
+            staticFriction: 1
+            dynamicFriction: 1
+            cullingThresh: 0.005
+            contactCullingDepth: 0.05
+            errorCriterion: 0.001
+            maxNumIterations: 1000
+            contactCorrectionDepth: 0.0001
+            contactCorrectionVelocityRatio: 1
+            kinematicWalking: false
+            2Dmode: false
+            oldAccelSensorMode: false
 views: 
   - 
     id: 0
@@ -173,7 +246,7 @@ views:
     class: ItemTreeView
     mounted: true
     state: 
-      expanded: [ 1, 2 ]
+      expanded: [ 1, 3, 4, 5, 6, 7, 8 ]
   - 
     id: 2
     plugin: Base
@@ -225,9 +298,9 @@ views:
           fieldOfView: 0.698132
           near: 0.04
           far: 200
-          eye: [ -12.9291915, -0.000668850106, 14.6843921 ]
-          direction: [ 0.642598455, -0.0393314027, -0.765192961 ]
-          up: [ 0.763763664, -0.0467475389, 0.643801004 ]
+          eye: [ -29.1278793, 21.9625124, 10.5586499 ]
+          direction: [ 0.789684903, -0.589343856, -0.170503879 ]
+          up: [ 0.136645235, -0.101978687, 0.985357005 ]
         - 
           camera: [ System, Orthographic ]
           orthoHeight: 20
@@ -240,13 +313,19 @@ views:
       isDedicatedItemCheckEnabled: false
   - 
     id: 4
+    name: "Virtual Joystick"
+    plugin: Base
+    class: VirtualJoystickView
+    mounted: true
+  - 
+    id: 5
     plugin: Body
     class: BodyLinkView
     mounted: true
     state: 
       showRotationMatrix: false
   - 
-    id: 5
+    id: 6
     plugin: Body
     class: JointDisplacementView
     mounted: true
@@ -258,33 +337,38 @@ views:
       showSliders: true
       showDials: false
       showPhases: false
-      currentBodyItem: 7
   - 
-    id: 6
+    id: 7
     plugin: Body
     class: LinkSelectionView
     mounted: true
     state: 
       listingMode: "Link List"
-      currentBodyItem: 4
+      currentBodyItem: 2
       bodyItems: 
         - 
-          id: 2
-          selectedLinks: [ 0 ]
-        - 
           id: 3
-          selectedLinks: [ 0 ]
-        - 
-          id: 5
           selectedLinks: [ 0 ]
         - 
           id: 4
           selectedLinks: [ 0 ]
         - 
+          id: 5
+          selectedLinks: [ 0 ]
+        - 
+          id: 6
+          selectedLinks: [ 0 ]
+        - 
           id: 7
           selectedLinks: [ 0 ]
+        - 
+          id: 8
+          selectedLinks: [ 0 ]
+        - 
+          id: 2
+          selectedLinks: [ 0 ]
   - 
-    id: 7
+    id: 8
     plugin: Python
     class: PythonConsoleView
     mounted: true
@@ -332,6 +416,10 @@ toolbars:
     speedScale: 1
     syncToOngoingUpdates: true
     autoExpansion: true
+  "LeggedBodyBar": 
+    stanceWidth: 0.15
+  "BodyBar": 
+    current: 2
   "KinematicsBar": 
     mode: AUTO
     enablePositionDragger: true
@@ -340,23 +428,14 @@ toolbars:
     snapDistance: 0.025
     penetrationBlockDepth: 0.0005
     lazyCollisionDetectionMode: true
-  "BodyBar": 
-    current: 4
-  "LeggedBodyBar": 
-    stanceWidth: 0.15
 Body: 
   "BodyMotionEngine": 
     updateJointVelocities: false
   "BodySelectionManager": 
-    currentBodyItem: 4
-    currentLink: "Building"
+    currentBodyItem: 2
+    currentLink: "Floor"
   "EditableSceneBody": 
     editableSceneBodies: 
-      - 
-        bodyItem: 2
-        showCenterOfMass: false
-        showPpcom: false
-        showZmp: false
       - 
         bodyItem: 3
         showCenterOfMass: false
@@ -382,6 +461,11 @@ Body:
         showCenterOfMass: false
         showPpcom: false
         showZmp: false
+      - 
+        bodyItem: 8
+        showCenterOfMass: false
+        showPpcom: false
+        showZmp: false
   "KinematicFaultChecker": 
     checkJointPositions: true
     angleMargin: 0
@@ -403,7 +487,7 @@ viewAreas:
     contents: 
       type: splitter
       orientation: horizontal
-      sizes: [ 323, 1526 ]
+      sizes: [ 319, 1530 ]
       children: 
         - 
           type: splitter
@@ -416,7 +500,7 @@ viewAreas:
               current: 1
             - 
               type: pane
-              views: [ 0, 6 ]
+              views: [ 0, 7 ]
               current: 0
         - 
           type: splitter
@@ -426,20 +510,29 @@ viewAreas:
             - 
               type: splitter
               orientation: horizontal
-              sizes: [ 673, 849 ]
+              sizes: [ 675, 851 ]
               children: 
                 - 
                   type: pane
-                  views: [ 5, 4 ]
+                  views: [ 6, 5 ]
                   current: 5
                 - 
                   type: pane
                   views: [ 3 ]
                   current: 3
             - 
-              type: pane
-              views: [ 2, 7 ]
-              current: 2
+              type: splitter
+              orientation: horizontal
+              sizes: [ 763, 763 ]
+              children: 
+                - 
+                  type: pane
+                  views: [ 2, 8 ]
+                  current: 2
+                - 
+                  type: pane
+                  views: [ 4 ]
+                  current: 4
 layoutOfToolBars: 
   rows: 
     - 
