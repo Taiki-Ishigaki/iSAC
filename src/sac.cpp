@@ -1,7 +1,16 @@
 #include "sac.hpp"
 
 SAC::SAC(void){
-
+    Q  << 15, 0, 0, 0,
+          0, 1, 0, 0,
+          0, 0, 0.8, 0,
+          0, 0, 0, 0.8;
+    P  << 25, 0, 0, 0,
+          0, 0, 0, 0,
+          0, 0, 0, 0,
+          0, 0, 0, 0;
+    R  << 0.1, 0,
+          0, 0.1;
 }
 
 VectorXd SAC::state_eq(double t, VectorXd x, VectorXd u){
@@ -108,9 +117,10 @@ void SAC::Optimize(double t, VectorXd x){
         x_nom[loop_i] = x_nom[loop_i-1] + state_eq(t + T_S*loop_i, x_nom[loop_i-1], u_nom)*T_S;
     }
     rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]);
+    MatrixXd E = MatrixXd::Identity(x.size(), x.size());
     for(int loop_i = T_HOR; loop_i > 0; loop_i--){
         jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
-        rho[loop_i-1] = (-jacob.transpose()).inverse()*(rho[loop_i]/T_S + dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
+        rho[loop_i-1] = (E-T_S*jacob.transpose()).inverse()*(rho[loop_i] + T_S*dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
     }
     /* compute optimal action schedule u_s* */
     VectorXd u_opt_s[T_HOR+1];
@@ -121,8 +131,6 @@ void SAC::Optimize(double t, VectorXd x){
     }
     /* Determine application time tau_A, input u_A */
     MatrixXd J_tau[T_HOR+1], J_taU_MIN;
-    // double tau_A;
-    // VectorXd u_A;
     int min_index = 0;
     J_taU_MIN = rho[0].transpose()*(state_eq(t, x_nom[0], u_opt_s[0]) - state_eq(t, x_nom[0], u_nom));
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
@@ -136,14 +144,11 @@ void SAC::Optimize(double t, VectorXd x){
     u_A = u_opt_s[min_index];
     for(int loop_i = 0; loop_i < u_A.size(); loop_i++){
         if(u_A(loop_i) > U_MAX){
-            std::cout << "A" << std::endl;
             u_A(loop_i) = U_MAX;
         }else if(u_A(loop_i) < U_MIN){
             u_A(loop_i) = U_MIN;
-            std::cout << "B" << std::endl;
         }
     }
-    std::cout << u_A(0) << u_A(1) << std::endl;
     /* Determine control duration lambda_A*/
     double J_new = INF;
     double J_init = calc_J(t, x, u_nom);
@@ -172,7 +177,7 @@ void SAC::Optimize(double t, VectorXd x){
 VectorXd SAC::Control(double t){
     if(t < tau_A){
         return u_nom;
-    }else if(tau_A < t && t < tau_A + duration){
+    }else if(tau_A <= t && t <= tau_A + duration){
         return u_A;
     }else if(tau_A + duration < t){
         return u_nom;

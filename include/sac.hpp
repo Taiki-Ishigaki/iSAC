@@ -11,8 +11,8 @@ class SAC{
 
     public:
     /*parameter*/
-    const double T_S = 0.1; //sampling parameter
-    const int T_HOR = 100; //time horizon
+    const double T_S = 0.03; //sampling parameter
+    const int T_HOR = 10; //time horizon
     const double U_MAX = 500;
     const double U_MIN = -500;
     const double INF = 100000000.0;
@@ -42,7 +42,7 @@ class SAC{
     MatrixXd Q = MatrixXd::Identity(4,4);
     MatrixXd P = MatrixXd::Identity(4,4);
     MatrixXd R = MatrixXd::Identity(2,2);
-    double alpha_d = -1000;
+    double alpha_d = -100;
     double default_duration = T_S/100;
 
     /*variable*/
