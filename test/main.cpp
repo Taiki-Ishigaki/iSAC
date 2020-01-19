@@ -1,202 +1,31 @@
 #include <iostream>
-#include <Eigen/Dense>
-#include <Eigen/Core>
+#include "sac.hpp"
 
 using namespace std;
-using namespace Eigen;
-
-/*parameter*/
-const double T_S = 0.1; //sampling parameter
-const int T_HOR = 100; //time horizon
-const double U_MAX = 500;
-const double U_MIN = -500;
-const double INF = 100000000.0;
-
-/*SAC parameter*/
-MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
-MatrixXd Q = MatrixXd::Identity(4,4);
-MatrixXd P = MatrixXd::Identity(4,4);
-MatrixXd R = MatrixXd::Identity(2,2);
-double alpha_d = -1000;
-double default_duration = T_S/100;
-
-VectorXd state_eq(double t, VectorXd x, VectorXd u){
-    VectorXd dx(4);
-    dx(0) =  x(2) * cos(x(3));
-    dx(1) =  x(2) * sin(x(3));    
-    dx(2) =  u(0);  
-    dx(3) =  u(1);  
-    return dx;
-}
-
-MatrixXd control_func(double t, VectorXd x){
-    MatrixXd h = MatrixXd::Zero(4,2);
-    h(2, 0) =  1; 
-    h(3, 1) =  1; 
-    return h;
-}
-
-MatrixXd dstate_eq(double t, VectorXd x, VectorXd u){
-    MatrixXd dfdx = MatrixXd::Zero(4,4);
-    dfdx(0,2) =  cos(x(3));
-    dfdx(0,3) =  x(2) * -sin(x(3));    
-    dfdx(1,2) =  sin(x(3));  
-    dfdx(1,3) =  x(2) * cos(x(3));  
-    return dfdx;
-}
-
-double inc_cost(double t, VectorXd x){//incremental cost
-    double cost = x.transpose()*Q*x;
-    cost /= 2;
-    return cost;
-}
-VectorXd dinc_cost(double t, VectorXd x){//differential incremental cost
-    VectorXd dcost = Q*x;
-    return dcost;
-}
-
-double end_cost(double t, VectorXd x){ //end cost
-    double cost = x.transpose()*P*x;
-    cost /= 2;
-    return cost;
-}
-
-VectorXd dend_cost(double t, VectorXd x){//differential end cost
-    MatrixXd dcost = P*x;
-    return dcost;
-}
-
-VectorXd rho_eq(double t, VectorXd x_nom, VectorXd u_nom, VectorXd rho){
-    MatrixXd drho(4,1);
-    drho = -(dinc_cost(t, x_nom).transpose() - dstate_eq(t, x_nom, u_nom).transpose())*rho;
-    return drho;
-}
-
-double calc_J(double t, VectorXd x, VectorXd u){
-    MatrixXd x_i[T_HOR+1];
-    x_i[0] = x;
-    double cost, integral_term, end_term;
-    integral_term = inc_cost(t, x_i[0]);
-    for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
-        x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u)*T_S;
-        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i]);
-    }
-    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR]);
-    cost = integral_term + end_term;
-    return cost;
-}
-
-double calc_J_controlled(double t, MatrixXd x, MatrixXd u, MatrixXd u_A, double tau_A, double duration){
-    MatrixXd x_i[T_HOR+1], x_tmp;
-    x_i[0] = x;
-    double cost, integral_term, end_term;
-    integral_term = inc_cost(t, x_i[0]);
-    for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
-        if(((loop_i-1)*T_S < tau_A && tau_A < loop_i*T_S) &&
-            ((loop_i-1)*T_S < tau_A+duration && tau_A+duration < loop_i*T_S)){
-            x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*(tau_A - (loop_i-1)*T_S);
-            x_tmp = x_tmp + state_eq(tau_A, x_tmp, u_A)*duration;
-            x_i[loop_i] = x_tmp + state_eq(tau_A+duration, x_tmp, u_nom)*(loop_i*T_S-(tau_A+duration));
-        }else if((loop_i-1)*T_S < tau_A && tau_A < loop_i*T_S){
-            x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*(tau_A - (loop_i-1)*T_S);
-            x_i[loop_i] = x_tmp + state_eq(tau_A, x_tmp, u_A)*(loop_i*T_S - tau_A);
-        }else if(tau_A < (loop_i-1)*T_S && tau_A < loop_i*T_S){
-            x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_A)*T_S;
-        }else if((loop_i-1)*T_S < tau_A+duration && tau_A+duration < loop_i*T_S){
-             x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_A)*(tau_A+duration - (loop_i-1)*T_S);
-             x_i[loop_i] = x_tmp + state_eq(tau_A+duration, x_tmp, u_nom)*(loop_i*T_S - tau_A+duration);
-        }else{
-            x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*T_S;
-        } 
-        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i]);
-    }
-    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR]);
-    cost = integral_term + end_term;
-    return cost;
-}
 
 void Mat_size(MatrixXd m){
     cout << "rows = " << m.rows() << " cols == "<< m.cols() << endl;
 }
 
-void SAC(double t, VectorXd x){
-    /*predict*/
-    VectorXd x_nom[T_HOR+1];
-    MatrixXd rho[T_HOR+1], jacob;
-    x_nom[0] = x;
-    for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
-        x_nom[loop_i] = x_nom[loop_i-1] + state_eq(t + T_S*loop_i, x_nom[loop_i-1], u_nom)*T_S;
-    }
-    rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]);
-    for(int loop_i = T_HOR; loop_i > 0; loop_i--){
-        jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
-        rho[loop_i-1] = (-jacob.transpose()).inverse()*(rho[loop_i]/T_S + dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
-    }
-    /* compute optimal action schedule u_s* */
-    VectorXd u_opt_s[T_HOR+1];
-    MatrixXd tmp_h_rho;
-    for(int loop_i = 0; loop_i <= T_HOR; loop_i++){
-        tmp_h_rho = control_func(t + T_S*loop_i, x_nom[loop_i]).transpose() * rho[loop_i];
-        u_opt_s[loop_i] = u_nom + ((tmp_h_rho * tmp_h_rho.transpose() + R.transpose()).inverse() * tmp_h_rho)*alpha_d;
-    }
-    /* Determine application time tau_A, input u_A */
-    MatrixXd J_tau[T_HOR+1], J_taU_MIN;
-    double tau_A;
-    VectorXd u_A;
-    int min_index = 0;
-    J_taU_MIN = rho[0].transpose()*(state_eq(t, x_nom[0], u_opt_s[0]) - state_eq(t, x_nom[0], u_nom));
-    for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
-        J_tau[loop_i] = rho[loop_i].transpose()*(state_eq(t + T_S*loop_i, x_nom[loop_i], u_opt_s[loop_i]) - state_eq(t + T_S*loop_i, x_nom[loop_i], u_nom));  
-        if(J_taU_MIN(0,0) > J_tau[loop_i](0,0)){
-            J_taU_MIN = J_tau[loop_i];
-            min_index = loop_i;
-        }
-    }
-    tau_A = T_S * min_index;
-    u_A = u_opt_s[min_index];
-    for(int loop_i = 0; loop_i < u_A.size(); loop_i++){
-        if(u_A(loop_i) > U_MAX){
-            u_A(loop_i) = U_MAX;
-        }else if(u_A(loop_i) < U_MIN){
-            u_A(loop_i) = U_MIN;
-        }
-    }
-
-    /* Determine control duration lambda_A*/
-    double J_new = INF;
-    double J_init = calc_J(t, x, u_nom);
-    double delta_J_min = -J_init*0.1;
-    double dJ_prev;
-    double omega = 1.2; //optimaize parametr
-    double duration, duration_prev;
-    duration = duration_prev = default_duration;
-    int k = 0;
-    while(J_new -  J_init > delta_J_min && duration < T_S*T_HOR){
-        duration = pow(omega, k) * duration;
-        dJ_prev = J_new -  J_init;
-        J_new = calc_J_controlled(t, x, u_nom, u_A, tau_A, duration);
-        if(J_new -  J_init > dJ_prev){
-            duration = duration_prev;
-            break;
-        }
-        if(J_new -  J_init > 0){
-            duration = default_duration;
-        }
-        duration_prev = duration;
-        k += 1;
-    }
+void Vec_size(VectorXd v){
+    cout << "size = " << v.size() << endl;
 }
 
-const int LOOP_NUM = 50000;
+const int LOOP_NUM = 500;
 const double T_CTRL = 0.001;
+const double T_S = 0.1; //sampling parameter
+const int T_HOR = 100; //time horizon
 
 int main(){
 
     FILE *gid = popen("gnuplot -persist", "w");
 
     VectorXd x, u;
-    x = VectorXd::Zero(4);
+    x = VectorXd::Ones(4);
+    x(0) = 100;
     u = VectorXd::Zero(2);
+    
+    SAC sac;
 
     double t = 0;
     int sim_loop, control_time;
@@ -205,10 +34,16 @@ int main(){
     fprintf(gid, "plot '-' with lines\n");
     while(sim_loop < LOOP_NUM){
         if(control_time > T_S/T_CTRL){
-            SAC(sim_loop*T_S, x);
+            sac.Optimize(sim_loop*T_S, x);
             control_time = 0;
         }
-        fprintf(gid, "%d, %d\n",sim_loop, control_time);
+        u = sac.Control(control_time);
+        x += sac.state_eq(sim_loop*T_CTRL, x, u)*T_CTRL;
+        //cout << "u1 = " << u(0) << " u2 = " << u(1) << endl;
+        //cout << "u_A = " << sac.u_A(0) << " " << sac.u_A(1) << endl;
+        // Vec_size(sac.u_A);
+        // cout << "tau_A:" << sac.tau_A << " duration:" << sac.duration << endl; 
+        fprintf(gid, "%d, %lf\n",sim_loop, x(0));
         control_time++;
         sim_loop++;
     }
