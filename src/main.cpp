@@ -1,5 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
+#include <Eigen/Core>
 
 using namespace std;
 using namespace Eigen;
@@ -12,7 +13,7 @@ const double U_MIN = -500;
 const double INF = 100000000.0;
 
 /*SAC parameter*/
-VectorXd u_nom = VectorXd::Zero(4);//nominal control (often u_nom = 0)
+MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
 MatrixXd Q = MatrixXd::Identity(4,4);
 MatrixXd P = MatrixXd::Identity(4,4);
 MatrixXd R = MatrixXd::Identity(2,2);
@@ -45,7 +46,7 @@ MatrixXd dstate_eq(double t, VectorXd x, VectorXd u){
 }
 
 double inc_cost(double t, VectorXd x){//incremental cost
-    double cost =x.transpose()*Q*x;
+    double cost = x.transpose()*Q*x;
     cost /= 2;
     return cost;
 }
@@ -55,24 +56,24 @@ VectorXd dinc_cost(double t, VectorXd x){//differential incremental cost
 }
 
 double end_cost(double t, VectorXd x){ //end cost
-    double cost =x.transpose()*P*x;
+    double cost = x.transpose()*P*x;
     cost /= 2;
     return cost;
 }
 
 VectorXd dend_cost(double t, VectorXd x){//differential end cost
-    VectorXd dcost = P*x;
+    MatrixXd dcost = P*x;
     return dcost;
 }
 
 VectorXd rho_eq(double t, VectorXd x_nom, VectorXd u_nom, VectorXd rho){
-    VectorXd drho(4);
+    MatrixXd drho(4,1);
     drho = -(dinc_cost(t, x_nom).transpose() - dstate_eq(t, x_nom, u_nom).transpose())*rho;
     return drho;
 }
 
 double calc_J(double t, VectorXd x, VectorXd u){
-    VectorXd x_i[T_HOR+1];
+    MatrixXd x_i[T_HOR+1];
     x_i[0] = x;
     double cost, integral_term, end_term;
     integral_term = inc_cost(t, x_i[0]);
@@ -85,8 +86,8 @@ double calc_J(double t, VectorXd x, VectorXd u){
     return cost;
 }
 
-double calc_J_controlled(double t, VectorXd x, VectorXd u, VectorXd u_A, double tau_A, double duration){
-    VectorXd x_i[T_HOR+1], x_tmp;
+double calc_J_controlled(double t, MatrixXd x, MatrixXd u, MatrixXd u_A, double tau_A, double duration){
+    MatrixXd x_i[T_HOR+1], x_tmp;
     x_i[0] = x;
     double cost, integral_term, end_term;
     integral_term = inc_cost(t, x_i[0]);
@@ -114,33 +115,39 @@ double calc_J_controlled(double t, VectorXd x, VectorXd u, VectorXd u_A, double 
     return cost;
 }
 
-VectorXd SAC(double t, VectorXd x){
+void Mat_size(MatrixXd m){
+    cout << "rows = " << m.rows() << " cols == "<< m.cols() << endl;
+}
+
+void SAC(double t, VectorXd x){
     /*predict*/
-    VectorXd x_nom[T_HOR+1], rho[T_HOR+1], jacob;
+    VectorXd x_nom[T_HOR+1];
+    MatrixXd rho[T_HOR+1], jacob;
     x_nom[0] = x;
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
         x_nom[loop_i] = x_nom[loop_i-1] + state_eq(t + T_S*loop_i, x_nom[loop_i-1], u_nom)*T_S;
     }
-    rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]).transpose();
-    for(int loop_i = T_HOR; loop_i >= 0; loop_i--){
+    rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]);
+    for(int loop_i = T_HOR; loop_i > 0; loop_i--){
         jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
-        rho[loop_i-1] = (rho[loop_i]/T_S + dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]).transpose())*(-jacob.transpose()).inverse();
+        rho[loop_i-1] = (-jacob.transpose()).inverse()*(rho[loop_i]/T_S + dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
     }
     /* compute optimal action schedule u_s* */
     VectorXd u_opt_s[T_HOR+1];
-    MatrixXd tmp_rho_h;
+    MatrixXd tmp_h_rho;
     for(int loop_i = 0; loop_i <= T_HOR; loop_i++){
-        tmp_rho_h = rho[loop_i].transpose() * control_func(t + T_S*loop_i, x_nom[loop_i]);
-        u_opt_s[loop_i] = u_nom + ((tmp_rho_h.transpose() * tmp_rho_h + R.transpose()).inverse() * tmp_rho_h)*alpha_d;
+        tmp_h_rho = control_func(t + T_S*loop_i, x_nom[loop_i]).transpose() * rho[loop_i];
+        u_opt_s[loop_i] = u_nom + ((tmp_h_rho * tmp_h_rho.transpose() + R.transpose()).inverse() * tmp_h_rho)*alpha_d;
     }
     /* Determine application time tau_A, input u_A */
-    double J_tau[T_HOR+1], J_taU_MIN, tau_A;
+    MatrixXd J_tau[T_HOR+1], J_taU_MIN;
+    double tau_A;
     VectorXd u_A;
     int min_index = 0;
     J_taU_MIN = rho[0].transpose()*(state_eq(t, x_nom[0], u_opt_s[0]) - state_eq(t, x_nom[0], u_nom));
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
-        J_tau[loop_i] = rho[loop_i].transpose()*(state_eq(t + T_S*loop_i, x_nom[loop_i], u_opt_s[loop_i]) - state_eq(t + T_S*loop_i, x_nom[loop_i], u_nom));
-        if(J_taU_MIN > J_tau[loop_i]){
+        J_tau[loop_i] = rho[loop_i].transpose()*(state_eq(t + T_S*loop_i, x_nom[loop_i], u_opt_s[loop_i]) - state_eq(t + T_S*loop_i, x_nom[loop_i], u_nom));  
+        if(J_taU_MIN(0,0) > J_tau[loop_i](0,0)){
             J_taU_MIN = J_tau[loop_i];
             min_index = loop_i;
         }
@@ -180,7 +187,34 @@ VectorXd SAC(double t, VectorXd x){
     }
 }
 
+const int LOOP_NUM = 50000;
+const double T_CTRL = 0.001;
+
 int main(){
-    cout<<"AAA\n"<<endl;
+
+    FILE *gid = popen("gnuplot -persist", "w");
+
+    VectorXd x, u;
+    x = VectorXd::Zero(4);
+    u = VectorXd::Zero(2);
+
+    double t = 0;
+    int sim_loop, control_time;
+    sim_loop = control_time = 0;
+    
+    fprintf(gid, "plot '-' with lines\n");
+    while(sim_loop < LOOP_NUM){
+        if(control_time > T_S/T_CTRL){
+            SAC(sim_loop*T_S, x);
+            control_time = 0;
+        }
+        fprintf(gid, "%d, %d\n",sim_loop, control_time);
+        control_time++;
+        sim_loop++;
+    }
+    fprintf(gid, "e\n"); 
+    fflush(gid);
+
+    pclose(gid);
     return 0;
 }
