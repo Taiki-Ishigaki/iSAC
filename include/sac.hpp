@@ -11,13 +11,13 @@ class SAC{
 
     public:
     /*parameter*/
-    const double T_S = 0.03; //sampling parameter
-    const int T_HOR = 10; //time horizon
-    const double U_MAX = 500;
-    const double U_MIN = -500;
+    const double T_S = 0.02; //sampling parameter
+    const int T_HOR = 60; //time horizon
+    const double U_MAX[2] = { 10,  4};
+    const double U_MIN[2] = {-10, -4};
     const double INF = 100000000.0;
 
-    SAC(void);
+    SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3);
 
     VectorXd state_eq(double t, VectorXd x, VectorXd u); //f
     MatrixXd control_func(double t, VectorXd x); //h
@@ -42,7 +42,7 @@ class SAC{
     MatrixXd Q = MatrixXd::Identity(4,4);
     MatrixXd P = MatrixXd::Identity(4,4);
     MatrixXd R = MatrixXd::Identity(2,2);
-    double alpha_d = -100;
+    double alpha_d = -1000;
     double default_duration = T_S/100;
 
     /*variable*/

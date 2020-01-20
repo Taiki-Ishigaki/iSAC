@@ -1,16 +1,9 @@
 #include "sac.hpp"
 
-SAC::SAC(void){
-    Q  << 15, 0, 0, 0,
-          0, 1, 0, 0,
-          0, 0, 0.8, 0,
-          0, 0, 0, 0.8;
-    P  << 25, 0, 0, 0,
-          0, 0, 0, 0,
-          0, 0, 0, 0,
-          0, 0, 0, 0;
-    R  << 0.1, 0,
-          0, 0.1;
+SAC::SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3){
+    Q  = w1;
+    P  = w2;
+    R  = w3;
 }
 
 VectorXd SAC::state_eq(double t, VectorXd x, VectorXd u){
@@ -118,9 +111,11 @@ void SAC::Optimize(double t, VectorXd x){
     }
     rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]);
     MatrixXd E = MatrixXd::Identity(x.size(), x.size());
+    MatrixXd K;
     for(int loop_i = T_HOR; loop_i > 0; loop_i--){
         jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
         rho[loop_i-1] = (E-T_S*jacob.transpose()).inverse()*(rho[loop_i] + T_S*dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
+        K = (E-T_S*jacob.transpose()).inverse();
     }
     /* compute optimal action schedule u_s* */
     VectorXd u_opt_s[T_HOR+1];
@@ -139,14 +134,15 @@ void SAC::Optimize(double t, VectorXd x){
             J_taU_MIN = J_tau[loop_i];
             min_index = loop_i;
         }
-    }
+    };
+    //std::cout<< u_A << std::endl;
     tau_A = T_S * min_index;
     u_A = u_opt_s[min_index];
     for(int loop_i = 0; loop_i < u_A.size(); loop_i++){
-        if(u_A(loop_i) > U_MAX){
-            u_A(loop_i) = U_MAX;
-        }else if(u_A(loop_i) < U_MIN){
-            u_A(loop_i) = U_MIN;
+        if(u_A(loop_i) > U_MAX[loop_i]){
+            u_A(loop_i) = U_MAX[loop_i];
+        }else if(u_A(loop_i) < U_MIN[loop_i]){
+            u_A(loop_i) = U_MIN[loop_i];
         }
     }
     /* Determine control duration lambda_A*/
