@@ -65,12 +65,15 @@ int main(){
     MatrixXd Pmat = readMat("Pmat.dat", 4, 4);
     MatrixXd Rmat = readMat("Rmat.dat", 2, 2);
 
-    VectorXd x, u;
+    VectorXd x, u, x_ref;
     x = VectorXd::Zero(4);
     //x(0) = 1;
-    x(3) = M_PI;
     x(1) = 1;
+    x(3) = 0;
     u = VectorXd::Zero(2);
+    x_ref = VectorXd::Zero(4);
+    x_ref(0) = -1.5;
+    x_ref(3) = 0;
     
     SAC sac(Qmat, Pmat, Rmat);
 
@@ -81,7 +84,7 @@ int main(){
     fprintf(gid, "plot '-' using 1:2 with lines\n");
     while(sim_loop < LOOP_NUM){
         if(control_time >= T_S/T_CTRL){
-            sac.Optimize(sim_loop*T_S, x);
+            sac.Optimize(sim_loop*T_S, x, x_ref);
             control_time = 0;
             // cout << "u_A = " << sac.u_A(0) << " " << sac.u_A(1) << endl;
             // cout << "tau_A:" << sac.tau_A << " duration:" << sac.duration << endl; 

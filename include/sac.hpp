@@ -16,6 +16,7 @@ class SAC{
     const double U_MAX[2] = { 10,  4};
     const double U_MIN[2] = {-10, -4};
     const double INF = 100000000.0;
+    const double EPS = 1.0e-3;
 
     SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3);
 
@@ -23,17 +24,15 @@ class SAC{
     MatrixXd control_func(double t, VectorXd x); //h
     MatrixXd dstate_eq(double t, VectorXd x, VectorXd u); //df
 
-    double inc_cost(double t, VectorXd x);//incremental cost
-    VectorXd dinc_cost(double t, VectorXd x);//differential incremental cost
-    double end_cost(double t, VectorXd x); //end cost
-    VectorXd dend_cost(double t, VectorXd x);//differential end cost
+    double inc_cost(double t, VectorXd x, VectorXd x_ref);//incremental cost
+    VectorXd dinc_cost(double t, VectorXd x, VectorXd x_ref);//differential incremental cost
+    double end_cost(double t, VectorXd x, VectorXd x_ref); //end cost
+    VectorXd dend_cost(double t, VectorXd x, VectorXd x_ref);//differential end cost
 
-    VectorXd rho_eq(double t, VectorXd x_nom, VectorXd u_nom, VectorXd rho);
+    double calc_J(double t, VectorXd x, VectorXd u, VectorXd x_ref);
+    double calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref);
 
-    double calc_J(double t, VectorXd x, VectorXd u);
-    double calc_J_controlled(double t, MatrixXd x, MatrixXd u);
-
-    void Optimize(double t, VectorXd x);
+    void Optimize(double t, VectorXd x, VectorXd x_ref);
 
     VectorXd Control(double t);
     

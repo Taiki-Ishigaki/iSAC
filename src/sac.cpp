@@ -31,52 +31,46 @@ MatrixXd SAC::dstate_eq(double t, VectorXd x, VectorXd u){
     return dfdx;
 }
 
-double SAC::inc_cost(double t, VectorXd x){//incremental cost
-    double cost = x.transpose()*Q*x;
+double SAC::inc_cost(double t, VectorXd x, VectorXd x_ref){//incremental cost
+    double cost = (x-x_ref).transpose()*Q*(x-x_ref);
     cost /= 2;
     return cost;
 }
-VectorXd SAC::dinc_cost(double t, VectorXd x){//differential incremental cost
-    VectorXd dcost = Q*x;
+VectorXd SAC::dinc_cost(double t, VectorXd x, VectorXd x_ref){//differential incremental cost
+    VectorXd dcost = Q*(x-x_ref);
     return dcost;
 }
 
-double SAC::end_cost(double t, VectorXd x){ //end cost
-    double cost = x.transpose()*P*x;
+double SAC::end_cost(double t, VectorXd x, VectorXd x_ref){ //end cost
+    double cost = (x-x_ref).transpose()*P*(x-x_ref);
     cost /= 2;
     return cost;
 }
 
-VectorXd SAC::dend_cost(double t, VectorXd x){//differential end cost
-    MatrixXd dcost = P*x;
+VectorXd SAC::dend_cost(double t, VectorXd x, VectorXd x_ref){//differential end cost
+    MatrixXd dcost = P*(x-x_ref);
     return dcost;
 }
 
-VectorXd SAC::rho_eq(double t, VectorXd x_nom, VectorXd u_nom, VectorXd rho){
-    MatrixXd drho(4,1);
-    drho = -(dinc_cost(t, x_nom).transpose() - dstate_eq(t, x_nom, u_nom).transpose())*rho;
-    return drho;
-}
-
-double SAC::calc_J(double t, VectorXd x, VectorXd u){
+double SAC::calc_J(double t, VectorXd x, VectorXd u, VectorXd x_ref){
     MatrixXd x_i[T_HOR+1];
     x_i[0] = x;
     double cost, integral_term, end_term;
-    integral_term = inc_cost(t, x_i[0]);
+    integral_term = inc_cost(t, x_i[0], x_ref);
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
         x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u)*T_S;
-        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i]);
+        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i], x_ref);
     }
-    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR]);
+    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR], x_ref);
     cost = integral_term + end_term;
     return cost;
 }
 
-double SAC::calc_J_controlled(double t, MatrixXd x, MatrixXd u){
+double SAC::calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref){
     MatrixXd x_i[T_HOR+1], x_tmp;
     x_i[0] = x;
     double cost, integral_term, end_term;
-    integral_term = inc_cost(t, x_i[0]);
+    integral_term = inc_cost(t, x_i[0], x_ref);
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
         if(((loop_i-1)*T_S < tau_A && tau_A < loop_i*T_S) &&
             ((loop_i-1)*T_S < tau_A+duration && tau_A+duration < loop_i*T_S)){
@@ -94,14 +88,14 @@ double SAC::calc_J_controlled(double t, MatrixXd x, MatrixXd u){
         }else{
             x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*T_S;
         } 
-        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i]);
+        integral_term += inc_cost(t + T_S*loop_i, x_i[loop_i], x_ref);
     }
-    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR]);
+    end_term = end_cost(t + T_S*T_HOR, x_i[T_HOR], x_ref);
     cost = integral_term + end_term;
     return cost;
 }
 
-void SAC::Optimize(double t, VectorXd x){
+void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
     /*predict*/
     VectorXd x_nom[T_HOR+1];
     MatrixXd rho[T_HOR+1], jacob;
@@ -109,20 +103,24 @@ void SAC::Optimize(double t, VectorXd x){
     for(int loop_i = 1; loop_i <= T_HOR; loop_i++){
         x_nom[loop_i] = x_nom[loop_i-1] + state_eq(t + T_S*loop_i, x_nom[loop_i-1], u_nom)*T_S;
     }
-    rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR]);
+    rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR],x_ref);
     MatrixXd E = MatrixXd::Identity(x.size(), x.size());
     MatrixXd K;
+    //std::cout<< rho[T_HOR] <<std::endl;
     for(int loop_i = T_HOR; loop_i > 0; loop_i--){
         jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
-        rho[loop_i-1] = (E-T_S*jacob.transpose()).inverse()*(rho[loop_i] + T_S*dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1]));
+        rho[loop_i-1] = (E -T_S*jacob.transpose()).inverse()*(rho[loop_i] + T_S*dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1], x_ref));
         K = (E-T_S*jacob.transpose()).inverse();
+        //std::cout<<jacob<<std::endl;
     }
+    //std::cout<< dinc_cost(t + T_S * (T_HOR - 1), x_nom[T_HOR-1], x_ref) <<std::endl;
     /* compute optimal action schedule u_s* */
     VectorXd u_opt_s[T_HOR+1];
     MatrixXd tmp_h_rho;
     for(int loop_i = 0; loop_i <= T_HOR; loop_i++){
         tmp_h_rho = control_func(t + T_S*loop_i, x_nom[loop_i]).transpose() * rho[loop_i];
-        u_opt_s[loop_i] = u_nom + ((tmp_h_rho * tmp_h_rho.transpose() + R.transpose()).inverse() * tmp_h_rho)*alpha_d;
+        u_opt_s[loop_i] = u_nom + (tmp_h_rho * tmp_h_rho.transpose() + R.transpose()).inverse() * (tmp_h_rho * tmp_h_rho.transpose()*u_nom + tmp_h_rho*alpha_d);
+        //std::cout<< tmp_h_rho <<std::endl;
     }
     /* Determine application time tau_A, input u_A */
     MatrixXd J_tau[T_HOR+1], J_taU_MIN;
@@ -147,7 +145,7 @@ void SAC::Optimize(double t, VectorXd x){
     }
     /* Determine control duration lambda_A*/
     double J_new = INF;
-    double J_init = calc_J(t, x, u_nom);
+    double J_init = calc_J(t, x, u_nom, x_ref);
     double delta_J_min = -J_init*0.1;
     double dJ_prev;
     double omega = 1.2; //optimaize parametr
@@ -157,7 +155,7 @@ void SAC::Optimize(double t, VectorXd x){
     while(J_new -  J_init > delta_J_min && duration < T_S*T_HOR){
         duration = pow(omega, k) * duration;
         dJ_prev = J_new -  J_init;
-        J_new = calc_J_controlled(t, x, u_nom);
+        J_new = calc_J_controlled(t, x, u_nom, x_ref);
         if(J_new -  J_init > dJ_prev){
             duration = duration_prev;
             break;
