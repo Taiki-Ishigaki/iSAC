@@ -4,6 +4,7 @@ SAC::SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3){
     Q  = w1;
     P  = w2;
     R  = w3;
+    std::cout<< "P" << P.rows() << "P_c" <<  P.cols() << std::endl;
 }
 
 VectorXd SAC::state_eq(double t, VectorXd x, VectorXd u){
@@ -105,22 +106,16 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
     }
     rho[T_HOR] = dend_cost(t+T_S*T_HOR,x_nom[T_HOR],x_ref);
     MatrixXd E = MatrixXd::Identity(x.size(), x.size());
-    MatrixXd K;
-    //std::cout<< rho[T_HOR] <<std::endl;
     for(int loop_i = T_HOR; loop_i > 0; loop_i--){
         jacob = dstate_eq(t + T_S*loop_i, x_nom[loop_i], u_nom);
         rho[loop_i-1] = (E -T_S*jacob.transpose()).inverse()*(rho[loop_i] + T_S*dinc_cost(t + T_S * (loop_i - 1), x_nom[loop_i-1], x_ref));
-        K = (E-T_S*jacob.transpose()).inverse();
-        //std::cout<<jacob<<std::endl;
     }
-    //std::cout<< dinc_cost(t + T_S * (T_HOR - 1), x_nom[T_HOR-1], x_ref) <<std::endl;
     /* compute optimal action schedule u_s* */
     VectorXd u_opt_s[T_HOR+1];
     MatrixXd tmp_h_rho;
     for(int loop_i = 0; loop_i <= T_HOR; loop_i++){
         tmp_h_rho = control_func(t + T_S*loop_i, x_nom[loop_i]).transpose() * rho[loop_i];
         u_opt_s[loop_i] = u_nom + (tmp_h_rho * tmp_h_rho.transpose() + R.transpose()).inverse() * (tmp_h_rho * tmp_h_rho.transpose()*u_nom + tmp_h_rho*alpha_d);
-        //std::cout<< tmp_h_rho <<std::endl;
     }
     /* Determine application time tau_A, input u_A */
     MatrixXd J_tau[T_HOR+1], J_taU_MIN;
@@ -178,4 +173,14 @@ VectorXd SAC::Control(double t){
     }else{
         return u_nom; 
     }
+}
+
+VectorXd SAC::get_u_A(void){
+    return u_A;
+}
+double SAC::get_tau_A(void){
+    return tau_A;
+}
+double SAC::get_duration(void){
+    return duration;
 }
