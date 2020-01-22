@@ -7,9 +7,17 @@
 using namespace Eigen;
 
 class SAC{
-    private:
-
     public:
+    SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3);
+    
+    void Optimize(double t, VectorXd x, VectorXd x_ref);
+    VectorXd Control(double t);
+
+    VectorXd get_u_A(void);
+    double get_tau_A(void);
+    double get_duration(void);
+
+    private:
     /*parameter*/
     const double T_S = 0.02; //sampling parameter
     const int T_HOR = 60; //time horizon
@@ -17,8 +25,6 @@ class SAC{
     const double U_MIN[2] = {-10, -4};
     const double INF = 100000000.0;
     const double EPS = 1.0e-3;
-
-    SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3);
 
     VectorXd state_eq(double t, VectorXd x, VectorXd u); //f
     MatrixXd control_func(double t, VectorXd x); //h
@@ -31,10 +37,6 @@ class SAC{
 
     double calc_J(double t, VectorXd x, VectorXd u, VectorXd x_ref);
     double calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref);
-
-    void Optimize(double t, VectorXd x, VectorXd x_ref);
-
-    VectorXd Control(double t);
     
     /*SAC parameter*/
     MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
