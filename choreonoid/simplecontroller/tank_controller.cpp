@@ -82,8 +82,7 @@ public:
         x_ref(0) = -1.5;
         x_ref(3) = 0;
         
-        SAC sac_instance(Q, P, R);
-        sac = &sac_instance;
+        sac = new SAC(Q, P, R);
 
         sim_loop = control_time = 0;
 
@@ -181,18 +180,17 @@ public:
             trackR->dq_target() = k * (-pos[1] - pos[0]);
         }
         if(control_time >= T_S/T_CTRL){
-            //cout << "u_A = " << sac->get_u_A() << endl;
-            cout << "tau_A:" << sac->get_tau_A() << " duration:" << sac->get_duration() << endl; 
             sac->Optimize(sim_loop*T_S, x, x_ref);
-            // cout << u << endl;
+            cout << "u_A = " << sac->get_u_A() << endl;
+            cout << "tau_A:" << sac->get_tau_A() << " duration:" << sac->get_duration() << endl; 
             control_time = 0;
         }
-        //u = sac->Control(control_time*T_CTRL);
-        // trackL->dq_target() = 1/1.5 * u(0) + 1.25/1.5 * u(1);
-        // trackR->dq_target() = 1/1.5 * u(0) - 1.25/1.5 * u(1);
+        u = sac->Control(control_time*T_CTRL);
+        trackL->dq_target() = 1/1.5 * u(0) + 1.25/1.5 * u(1);
+        trackR->dq_target() = 1/1.5 * u(0) - 1.25/1.5 * u(1);
 
         // double tau = sac->get_tau_A();
-        // cout << "tau = "  << tau << endl;
+        cout << "U =  "  << u(0) << " : " << u(1) << endl;
         control_time++;
         sim_loop++;
 
