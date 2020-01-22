@@ -9,6 +9,8 @@
 #include <cnoid/RangeSensor>
 #include <cnoid/Joystick>
 
+#include "sac.hpp"
+
 using namespace std;
 using namespace cnoid;
 
@@ -23,6 +25,17 @@ class tank_controller : public SimpleController
     double qref[2];
     double qprev[2];
     double dt;
+            
+    SAC *sac;
+
+    VectorXd x, u, x_ref;
+    double t = 0;
+    int sim_loop, control_time;
+
+    const int LOOP_NUM = 30000;
+    const double T_CTRL = 0.001;
+    const double T_S = 0.02; //sampling parameter
+    const int T_HOR = 60; //time horizon
 
     struct DeviceInfo {
         DevicePtr device;
@@ -45,6 +58,35 @@ public:
     
     virtual bool initialize(SimpleControllerIO* io) override
     {
+
+        MatrixXd Q(4,4), P(4,4), R(2,2);
+        Q  << 15, 0, 0, 0,
+               0, 1, 0, 0,
+               0, 0, 0.8, 0,
+               0, 0, 0, 0.8;
+        P  << 25, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0;
+        R  << 0.1, 0,
+                0, 0.1;
+        
+        std::cout<< "P" << P.rows() << "P_c" <<  P.cols() <<std::endl;
+
+        x = VectorXd::Zero(4);
+        //x(0) = 1;
+        x(1) = 1;
+        x(3) = 0;
+        u = VectorXd::Zero(2);
+        x_ref = VectorXd::Zero(4);
+        x_ref(0) = -1.5;
+        x_ref(3) = 0;
+        
+        SAC sac_instance(Q, P, R);
+        sac = &sac_instance;
+
+        sim_loop = control_time = 0;
+
         this->io = io;
         ostream& os = io->os();
         Body* body = io->body();
@@ -128,7 +170,7 @@ public:
                 pos[i] = 0.0;
             }
         }
-        // set the velocity of each tracks
+        //set the velocity of each tracks
         if(usePseudoContinousTrackMode){
             double k = 1.0;
             trackL->dq_target() = k * (-2.0 * pos[1] + pos[0]);
@@ -138,6 +180,21 @@ public:
             trackL->dq_target() = k * (-pos[1] + pos[0]);
             trackR->dq_target() = k * (-pos[1] - pos[0]);
         }
+        if(control_time >= T_S/T_CTRL){
+            //cout << "u_A = " << sac->get_u_A() << endl;
+            cout << "tau_A:" << sac->get_tau_A() << " duration:" << sac->get_duration() << endl; 
+            sac->Optimize(sim_loop*T_S, x, x_ref);
+            // cout << u << endl;
+            control_time = 0;
+        }
+        //u = sac->Control(control_time*T_CTRL);
+        // trackL->dq_target() = 1/1.5 * u(0) + 1.25/1.5 * u(1);
+        // trackR->dq_target() = 1/1.5 * u(0) - 1.25/1.5 * u(1);
+
+        // double tau = sac->get_tau_A();
+        // cout << "tau = "  << tau << endl;
+        control_time++;
+        sim_loop++;
 
         static const double P = 200.0;
         static const double D = 50.0;
@@ -174,17 +231,17 @@ public:
                     stateChanged = true;
                 }
                 auto spotLight = dynamic_pointer_cast<SpotLight>(info.device);
-                if(spotLight){
-                    if(joystick.getPosition(Joystick::R_TRIGGER_AXIS) > 0.1){
-                        spotLight->setBeamWidth(
-                            std::max(0.1f, spotLight->beamWidth() - 0.001f));
-                        stateChanged = true;
-                    } else if(joystick.getButtonState(Joystick::R_BUTTON)){
-                        spotLight->setBeamWidth(
-                            std::min(0.7854f, spotLight->beamWidth() + 0.001f));
-                        stateChanged = true;
-                    }
-                }
+                // if(spotLight){
+                //     if(joystick.getPosition(Joystick::R_TRIGGER_AXIS) > 0.1){
+                //         spotLight->setBeamWidth(
+                //             std::max(0.1f, spotLight->beamWidth() - 0.001f));
+                //         stateChanged = true;
+                //     } else if(joystick.getButtonState(Joystick::R_BUTTON)){
+                //         spotLight->setBeamWidth(
+                //             std::min(0.7854f, spotLight->beamWidth() + 0.001f));
+                //         stateChanged = true;
+                //     }
+                // }
                 info.prevButtonState = buttonState;
                 if(stateChanged){
                     info.device->notifyStateChange();
