@@ -54,7 +54,7 @@ MatrixXd readMat(string file, int rows, int cols) {
 const int LOOP_NUM = 30000;
 const double T_CTRL = 0.001;
 const double T_S = 0.02; //sampling parameter
-const int T_HOR = 60; //time horizon
+const int T_HOR = 600; //time horizon
 
 int main(){
 
@@ -86,14 +86,14 @@ int main(){
         if(control_time >= T_S/T_CTRL){
             sac.Optimize(sim_loop*T_S, x, x_ref);
             control_time = 0;
-            // cout << "u_A = " << sac.u_A(0) << " " << sac.u_A(1) << endl;
-            // cout << "tau_A:" << sac.tau_A << " duration:" << sac.duration << endl; 
+            // cout << "u_A = " << sac.get_u_A() << endl;
+            cout << "tau_A:" << sac.get_tau_A() << " duration:" << sac.get_duration() << endl; 
         }
         u = sac.Control(control_time*T_CTRL);
         x += sac.state_eq(sim_loop*T_CTRL, x, u)*T_CTRL;
         //cout << "u1 = " << u(0) << " u2 = " << u(1) << endl;
         fprintf(fp, "%lf, %lf, %lf, %lf, %lf\n",sim_loop*T_CTRL, x(0), x(1), x(2), x(3));
-        fprintf(gid, "%lf, %lf\n",x(0), x(1));
+        fprintf(gid, "%lf, %lf\n",sim_loop*T_CTRL, u(0));
         control_time++;
         sim_loop++;
     }

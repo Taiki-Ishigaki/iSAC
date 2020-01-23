@@ -4,7 +4,6 @@ SAC::SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3){
     Q  = w1;
     P  = w2;
     R  = w3;
-    std::cout<< "P" << P.rows() << "P_c" <<  P.cols() << std::endl;
 }
 
 VectorXd SAC::state_eq(double t, VectorXd x, VectorXd u){
@@ -151,15 +150,18 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
         duration = pow(omega, k) * duration;
         dJ_prev = J_new -  J_init;
         J_new = calc_J_controlled(t, x, u_nom, x_ref);
+        std::cout << J_new -  J_init << std::endl;
         if(J_new -  J_init > dJ_prev){
             duration = duration_prev;
             break;
         }
         if(J_new -  J_init > 0){
             duration = default_duration;
+            break;
         }
         duration_prev = duration;
         k += 1;
+        std::cout << duration << std::endl;
     }
 }
 

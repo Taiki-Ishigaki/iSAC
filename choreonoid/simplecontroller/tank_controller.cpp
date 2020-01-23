@@ -14,6 +14,19 @@
 using namespace std;
 using namespace cnoid;
 
+double RtoRad(Matrix3 R){
+    if(R(2,2) = 1){
+        if(R(0,0) != 0 && R(0,1) != 0){
+            return atan2(R(0,1), R(0,0));
+        }else if(R(0,0) == 0){
+            return M_PI/2 * ((R(1,0) > 0)?1:-1);    
+        }else if(R(1,0) == 0){
+            return M_PI * ((R(0,0) > 0)?1:-1);  
+        }
+    }
+    return 0;
+}
+
 class tank_controller : public SimpleController
 {
     SimpleControllerIO* io;
@@ -22,9 +35,14 @@ class tank_controller : public SimpleController
     Link* trackL;
     Link* trackR;
     Link* turretJoint[2];
+    Link* tank_chassis;
     double qref[2];
     double qprev[2];
     double dt;
+
+    Position T_i;// = io->body()->rootLink()->position();
+    Vector3 p_i, pre_p_i;// = T.translation();
+    Matrix3 R_i, pre_R_i;// = T.rotation();
             
     SAC *sac;
 
@@ -35,7 +53,7 @@ class tank_controller : public SimpleController
     const int LOOP_NUM = 30000;
     const double T_CTRL = 0.001;
     const double T_S = 0.02; //sampling parameter
-    const int T_HOR = 60; //time horizon
+    const int T_HOR = 600; //time horizon
 
     struct DeviceInfo {
         DevicePtr device;
@@ -74,12 +92,12 @@ public:
         std::cout<< "P" << P.rows() << "P_c" <<  P.cols() <<std::endl;
 
         x = VectorXd::Zero(4);
-        //x(0) = 1;
-        x(1) = 1;
+        x(0) = 0.5;
+        x(1) = -1;
         x(3) = 0;
         u = VectorXd::Zero(2);
         x_ref = VectorXd::Zero(4);
-        x_ref(0) = -1.5;
+        x_ref(0) = 0;
         x_ref(3) = 0;
         
         sac = new SAC(Q, P, R);
@@ -89,6 +107,8 @@ public:
         this->io = io;
         ostream& os = io->os();
         Body* body = io->body();
+
+        io->setLinkInput(io->body()->rootLink(), LINK_POSITION);
 
         usePseudoContinousTrackMode = true;
         turretActuationMode = Link::ActuationMode::JOINT_TORQUE;
@@ -109,6 +129,8 @@ public:
             trackL = body->link("WHEEL_L0");
             trackR = body->link("WHEEL_R0");
         }
+
+        tank_chassis = body->link("CHASSIS");
 
         if(!trackL || !trackR){
             os << "The tracks are not found." << endl;
@@ -169,7 +191,7 @@ public:
                 pos[i] = 0.0;
             }
         }
-        //set the velocity of each tracks
+        /*set the velocity of each tracks*/
         if(usePseudoContinousTrackMode){
             double k = 1.0;
             trackL->dq_target() = k * (-2.0 * pos[1] + pos[0]);
@@ -179,20 +201,42 @@ public:
             trackL->dq_target() = k * (-pos[1] + pos[0]);
             trackR->dq_target() = k * (-pos[1] - pos[0]);
         }
-        if(control_time >= T_S/T_CTRL){
+
+        if(control_time >= T_S/dt){
             sac->Optimize(sim_loop*T_S, x, x_ref);
             cout << "u_A = " << sac->get_u_A() << endl;
             cout << "tau_A:" << sac->get_tau_A() << " duration:" << sac->get_duration() << endl; 
             control_time = 0;
         }
-        u = sac->Control(control_time*T_CTRL);
+        u = sac->Control(control_time*dt);
         trackL->dq_target() = 1/1.5 * u(0) + 1.25/1.5 * u(1);
         trackR->dq_target() = 1/1.5 * u(0) - 1.25/1.5 * u(1);
 
-        // double tau = sac->get_tau_A();
-        cout << "U =  "  << u(0) << " : " << u(1) << endl;
+        // cout << "dq =  "  << 1/1.5 * u(0) + 1.25/1.5 * u(1) << " : " << 1/1.5 * u(0) - 1.25/1.5 * u(1) << endl;
+        // cout << "u =  "  << u(0) << " : " << u(1) << endl;
+        // cout << "x =  "  << x(0) << " : " << x(1) << " : " << x(2) << " : " << x(3) << endl;
         control_time++;
         sim_loop++;
+
+        T_i = io->body()->rootLink()->position();
+        p_i = T_i.translation();
+        R_i = T_i.rotation();
+
+        double vx, vy, w;
+        vx = (p_i(0) - pre_p_i(0))/dt;
+        vx = (p_i(1) - pre_p_i(1))/dt;
+        w = (RtoRad(R_i) - RtoRad(pre_R_i))/dt;
+        // cout << "p =  "  << p_i(0) << " : " << p_i(1) << " : " << p_i(2) << endl;
+        // cout << "vx:" << vx << "vy:" << vy << "w" << RtoRad(R_i) << "R" << R_i(0,0) << endl;
+        //cout << "t =  " << dt << endl;
+        //cout << trackR->dq() << " " << trackL->dq() << endl;
+        x(0) = p_i(0);
+        x(1) = p_i(1);
+        x(2) = vx*R_i(0,0) + vy*R_i(1,0);//( trackR->dq() + trackL->dq()) * 1.50 / 2; // (dq_R + dq_L) * 2piR /2
+        x(3) = w;//( trackR->dq() - trackL->dq()) * 1.50 / (2 * 1.25); // (dq_R - dq_L) * 2piR / (2 + 2piL)
+
+        pre_p_i = p_i;
+        pre_R_i = R_i;
 
         static const double P = 200.0;
         static const double D = 50.0;
