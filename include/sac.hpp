@@ -13,7 +13,9 @@ class SAC{
     void Optimize(double t, VectorXd x, VectorXd x_ref);
     VectorXd Control(double t);
 
-    VectorXd state_eq(double t, VectorXd x, VectorXd u); //f
+    VectorXd (*state_eq)(double t, VectorXd x, VectorXd u); //f
+    MatrixXd (*control_func)(double t, VectorXd x); //h
+    MatrixXd (*dstate_eq)(double t, VectorXd x, VectorXd u); //df
 
     VectorXd get_u_A(void);
     double get_tau_A(void);
@@ -22,14 +24,11 @@ class SAC{
     private:
     /*parameter*/
     const double T_S = 0.02; //sampling parameter
-    const int T_HOR = 600; //time horizon
-    const double U_MAX[2] = { 0.08,  1.5};
-    const double U_MIN[2] = {-0.08, -1.5};
+    const int T_HOR = 60; //time horizon
+    const double U_MAX[2] = { 5,  1.5};
+    const double U_MIN[2] = {-5, -1.5};
     const double INF = 100000000.0;
     const double EPS = 1.0e-3;
-
-    MatrixXd control_func(double t, VectorXd x); //h
-    MatrixXd dstate_eq(double t, VectorXd x, VectorXd u); //df
 
     double inc_cost(double t, VectorXd x, VectorXd x_ref);//incremental cost
     VectorXd dinc_cost(double t, VectorXd x, VectorXd x_ref);//differential incremental cost

@@ -6,31 +6,6 @@ SAC::SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3){
     R  = w3;
 }
 
-VectorXd SAC::state_eq(double t, VectorXd x, VectorXd u){
-    VectorXd dx(4);
-    dx(0) =  x(2) * cos(x(3));
-    dx(1) =  x(2) * sin(x(3));    
-    dx(2) =  u(0);  
-    dx(3) =  u(1);  
-    return dx;
-}
-
-MatrixXd SAC::control_func(double t, VectorXd x){
-    MatrixXd h = MatrixXd::Zero(4,2);
-    h(2, 0) =  1; 
-    h(3, 1) =  1; 
-    return h;
-}
-
-MatrixXd SAC::dstate_eq(double t, VectorXd x, VectorXd u){
-    MatrixXd dfdx = MatrixXd::Zero(4,4);
-    dfdx(0,2) =  cos(x(3));
-    dfdx(0,3) =  x(2) * -sin(x(3));    
-    dfdx(1,2) =  sin(x(3));  
-    dfdx(1,3) =  x(2) * cos(x(3));  
-    return dfdx;
-}
-
 double SAC::inc_cost(double t, VectorXd x, VectorXd x_ref){//incremental cost
     double cost = (x-x_ref).transpose()*Q*(x-x_ref);
     cost /= 2;
@@ -80,11 +55,11 @@ double SAC::calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref){
         }else if((loop_i-1)*T_S < tau_A && tau_A < loop_i*T_S){
             x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*(tau_A - (loop_i-1)*T_S);
             x_i[loop_i] = x_tmp + state_eq(tau_A, x_tmp, u_A)*(loop_i*T_S - tau_A);
-        }else if(tau_A < (loop_i-1)*T_S && tau_A < loop_i*T_S){
+        }else if((loop_i-1)*T_S > tau_A && tau_A < loop_i*T_S){
             x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_A)*T_S;
-        }else if((loop_i-1)*T_S < tau_A+duration && tau_A+duration < loop_i*T_S){
-             x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_A)*(tau_A+duration - (loop_i-1)*T_S);
-             x_i[loop_i] = x_tmp + state_eq(tau_A+duration, x_tmp, u_nom)*(loop_i*T_S - tau_A+duration);
+        }else if((loop_i-1)*T_S > tau_A && (loop_i-1)*T_S < tau_A+duration && tau_A+duration < loop_i*T_S){
+            x_tmp = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_A)*(tau_A+duration - (loop_i-1)*T_S);
+            x_i[loop_i] = x_tmp + state_eq(tau_A+duration, x_tmp, u_nom)*(loop_i*T_S - tau_A+duration);
         }else{
             x_i[loop_i] = x_i[loop_i-1] + state_eq(t + T_S*(loop_i-1), x_i[loop_i-1], u_nom)*T_S;
         } 
@@ -150,7 +125,6 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
         duration = pow(omega, k) * duration;
         dJ_prev = J_new -  J_init;
         J_new = calc_J_controlled(t, x, u_nom, x_ref);
-        std::cout << J_new -  J_init << std::endl;
         if(J_new -  J_init > dJ_prev){
             duration = duration_prev;
             break;
@@ -161,7 +135,6 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
         }
         duration_prev = duration;
         k += 1;
-        std::cout << duration << std::endl;
     }
 }
 
