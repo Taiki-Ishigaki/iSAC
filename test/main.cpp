@@ -99,8 +99,9 @@ int main(){
     x_ref = VectorXd::Zero(4);
     x_ref(0) = 1;
     x_ref(3) = 0;
-    
-    SAC sac(Qmat, Pmat, Rmat);
+
+    SAC sac(4, 2);
+    sac.Initialize(Qmat, Pmat, Rmat);
     sac.state_eq = state;
     sac.control_func = control;
     sac.dstate_eq = dstate;
