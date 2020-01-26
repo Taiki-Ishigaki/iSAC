@@ -1,6 +1,14 @@
 #include "sac.hpp"
 
-SAC::SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3){
+SAC::SAC(int x_dim, int u_dim){
+    u_nom = VectorXd::Zero(u_dim);//nominal control (often u_nom = 0)
+    Q = MatrixXd::Identity(x_dim,x_dim);
+    P = MatrixXd::Identity(x_dim,x_dim);
+    R = MatrixXd::Identity(u_dim,u_dim);
+    
+}
+
+void SAC::Initialize(MatrixXd w1, MatrixXd w2, MatrixXd w3){
     Q  = w1;
     P  = w2;
     R  = w3;

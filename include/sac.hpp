@@ -8,7 +8,9 @@ using namespace Eigen;
 
 class SAC{
     public:
-    SAC(MatrixXd w1,MatrixXd w2,MatrixXd w3);
+    SAC(int x_dim, int u_dim);
+
+    void Initialize(MatrixXd w1,MatrixXd w2,MatrixXd w3);
     
     void Optimize(double t, VectorXd x, VectorXd x_ref);
     VectorXd Control(double t);
@@ -22,6 +24,9 @@ class SAC{
     double get_duration(void);
 
     private:
+    int x_dimention;
+    int u_dimention;
+
     /*parameter*/
     const double T_S = 0.02; //sampling parameter
     const int T_HOR = 60; //time horizon
@@ -39,10 +44,10 @@ class SAC{
     double calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref);
     
     /*SAC parameter*/
-    MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
-    MatrixXd Q = MatrixXd::Identity(4,4);
-    MatrixXd P = MatrixXd::Identity(4,4);
-    MatrixXd R = MatrixXd::Identity(2,2);
+    MatrixXd u_nom = VectorXd::Zero(1);//nominal control (often u_nom = 0)
+    MatrixXd Q = MatrixXd::Identity(1,1);
+    MatrixXd P = MatrixXd::Identity(1,1);
+    MatrixXd R = MatrixXd::Identity(1,1);
     double alpha_d = -100;
     double default_duration = T_S/100;
 
