@@ -30,8 +30,8 @@ class SAC{
     /*parameter*/
     const double T_S = 0.02; //sampling parameter
     const int T_HOR = 60; //time horizon
-    const double U_MAX[2] = { 5,  1.5};
-    const double U_MIN[2] = {-5, -1.5};
+    const double U_MAX[2] = { 2,  0.08};
+    const double U_MIN[2] = {-2, -0.08};
     const double INF = 100000000.0;
     const double EPS = 1.0e-3;
 
@@ -44,11 +44,11 @@ class SAC{
     double calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref);
     
     /*SAC parameter*/
-    MatrixXd u_nom = VectorXd::Zero(1);//nominal control (often u_nom = 0)
-    MatrixXd Q = MatrixXd::Identity(1,1);
-    MatrixXd P = MatrixXd::Identity(1,1);
-    MatrixXd R = MatrixXd::Identity(1,1);
-    double alpha_d = -100;
+    MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
+    MatrixXd Q = MatrixXd::Identity(4,4);
+    MatrixXd P = MatrixXd::Identity(4,4);
+    MatrixXd R = MatrixXd::Identity(2,2);
+    double alpha_d = -5;
     double default_duration = T_S/100;
 
     /*variable*/

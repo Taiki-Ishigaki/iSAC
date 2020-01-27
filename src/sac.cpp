@@ -110,7 +110,6 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
             min_index = loop_i;
         }
     };
-    //std::cout<< u_A << std::endl;
     tau_A = T_S * min_index;
     u_A = u_opt_s[min_index];
     for(int loop_i = 0; loop_i < u_A.size(); loop_i++){
@@ -123,7 +122,7 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
     /* Determine control duration lambda_A*/
     double J_new = INF;
     double J_init = calc_J(t, x, u_nom, x_ref);
-    double delta_J_min = -J_init*0.1;
+    double delta_J_min = -J_init;
     double dJ_prev;
     double omega = 1.2; //optimaize parametr
     double duration_prev;
@@ -146,16 +145,12 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
     }
 }
 
-VectorXd SAC::Control(double t){
-    if(t < tau_A){
-        return u_nom;
-    }else if(tau_A <= t && t <= tau_A + duration){
-        return u_A;
-    }else if(tau_A + duration < t){
-        return u_nom;
-    }else{
-        return u_nom; 
+VectorXd iSAC::Control(double t){
+    VectorXd u_out = u_nom;
+    if(tau_A <= t && t <= tau_A + duration){
+        u_out = u_A;
     }
+    return u_out;
 }
 
 VectorXd SAC::get_u_A(void){
