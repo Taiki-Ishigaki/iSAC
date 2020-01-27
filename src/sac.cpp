@@ -145,7 +145,7 @@ void SAC::Optimize(double t, VectorXd x, VectorXd x_ref){
     }
 }
 
-VectorXd iSAC::Control(double t){
+VectorXd SAC::Control(double t){
     VectorXd u_out = u_nom;
     if(tau_A <= t && t <= tau_A + duration){
         u_out = u_A;
