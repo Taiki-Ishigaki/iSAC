@@ -38,31 +38,6 @@ items:
             selfCollisionDetection: false
             isSceneBodyDraggable: false
         - 
-          id: 3
-          name: "Building"
-          plugin: Body
-          class: BodyItem
-          isChecked: true
-          data: 
-            modelFile: "${PROJECT_DIR}/Building.body"
-            currentBaseLink: ""
-            rootPosition: [ 1, -2, 1 ]
-            rootAttitude: [ 
-              1, 0, 0, 
-              0, 1, 0, 
-              0, 0, 1 ]
-            jointPositions: [  ]
-            initialRootPosition: [ 1, -2, 1 ]
-            initialRootAttitude: [ 
-              1, 0, 0, 
-              0, 1, 0, 
-              0, 0, 1 ]
-            zmp: [ 0, 0, 0 ]
-            staticModel: true
-            collisionDetection: true
-            selfCollisionDetection: false
-            isSceneBodyDraggable: true
-        - 
           id: 4
           name: "Building"
           plugin: Body
@@ -71,13 +46,13 @@ items:
           data: 
             modelFile: "${PROJECT_DIR}/Building.body"
             currentBaseLink: ""
-            rootPosition: [ 0, 0, 1 ]
+            rootPosition: [ 3, 4, 1 ]
             rootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             jointPositions: [  ]
-            initialRootPosition: [ 0, 0, 1 ]
+            initialRootPosition: [ 3, 4, 1 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
@@ -171,14 +146,14 @@ items:
           data: 
             modelFile: "${SHARE}/model/Tank/Tank.body"
             currentBaseLink: ""
-            rootPosition: [ 0.5, -1, 0.106 ]
+            rootPosition: [ 0.0, 0.0, 0.106 ]
             rootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 
               0, 0, 1 ]
             jointDisplacements: [  0.000000,  0.000000 ]
             jointPositions: [  0.000000,  0.000000 ]
-            initialRootPosition: [ 0.5, -1, 0.106 ]
+            initialRootPosition: [ 0.0, 0.0, 0.106 ]
             initialRootAttitude: [ 
               1, 0, 0, 
               0, 1, 0, 

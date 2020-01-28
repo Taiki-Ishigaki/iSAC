@@ -23,6 +23,7 @@ link_directories(
 add_library(tank_controller
     SHARED
     sac.cpp
+    isac.cpp
     tank_controller.cpp
 )
 

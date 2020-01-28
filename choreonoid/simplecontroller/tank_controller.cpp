@@ -10,6 +10,7 @@
 #include <cnoid/Joystick>
 
 #include "sac.hpp"
+#include "isac.hpp"
 
 using namespace std;
 using namespace cnoid;
@@ -44,7 +45,10 @@ class tank_controller : public SimpleController
     Vector3 p_i, pre_p_i;// = T.translation();
     Matrix3 R_i, pre_R_i;// = T.rotation();
             
-    SAC *sac;
+    iSAC *sac;
+    
+    double u_max[2] = { 1,  0.5};
+    double u_min[2] = {-1, -0.5};
 
     VectorXd x, u, x_ref;
     double t = 0;
@@ -73,34 +77,66 @@ class tank_controller : public SimpleController
     Joystick joystick;
 
 public:
+    static VectorXd f_state(double t, VectorXd x, VectorXd u){
+        VectorXd dx(4);
+        dx(0) =  u(0) * cos(x(3));
+        dx(1) =  x(0) * sin(x(3));    
+        dx(2) =  u(0);  
+        dx(3) =  u(1);  
+        return dx;
+    }
+
+    static MatrixXd h_control(double t, VectorXd x){
+        MatrixXd h = MatrixXd::Zero(4,2);
+        h(0, 0) =  cos(x(3)); 
+        h(1, 0) =  sin(x(3)); 
+        h(2, 0) = 1;
+        h(3, 1) = 1;
+        return h;
+    }
+
+    static MatrixXd df_dstate(double t, VectorXd x, VectorXd u){
+        MatrixXd dfdx = MatrixXd::Zero(4,4);
+        dfdx(0,3) =  -sin(x(3));     
+        dfdx(1,3) =   cos(x(3));  
+        return dfdx;
+    }
     
     virtual bool initialize(SimpleControllerIO* io) override
     {
 
         MatrixXd Q(4,4), P(4,4), R(2,2);
-        Q  << 15, 0, 0, 0,
-               0, 1, 0, 0,
-               0, 0, 0.8, 0,
-               0, 0, 0, 0.8;
-        P  << 25, 0, 0, 0,
+        Q  << 30, 0, 0, 0,
+               0, 30, 0, 0,
+               0, 0, 0, 0,
+               0, 0, 0, 5;
+        P  <<  20, 0, 0, 0,
+                0, 20, 0, 0,
                 0, 0, 0, 0,
-                0, 0, 0, 0,
-                0, 0, 0, 0;
-        R  << 0.1, 0,
-                0, 0.1;
-        
-        std::cout<< "P" << P.rows() << "P_c" <<  P.cols() <<std::endl;
+                0, 0, 0, 10;
+        R  << 1, 0,
+              0, 0.5;
 
         x = VectorXd::Zero(4);
-        x(0) = 0.5;
-        x(1) = -1;
+        x(0) = 0.0;
+        x(1) = 0;
         x(3) = 0;
         u = VectorXd::Zero(2);
         x_ref = VectorXd::Zero(4);
-        x_ref(0) = 0;
+        x_ref(1) = 2;
+        x_ref(0) = 1;
         x_ref(3) = 0;
+
+        T_i = io->body()->rootLink()->position();
+        pre_p_i = T_i.translation();
+        pre_R_i = T_i.rotation();
         
-        sac = new SAC(Q, P, R);
+        sac = new iSAC(4, 2);
+        sac->Initialize(Q, P, R);
+        sac->set_u_limit(u_max, u_min);
+        sac->state_eq = &f_state;
+        sac->control_func = &h_control;
+        sac->dstate_eq = &df_dstate;
 
         sim_loop = control_time = 0;
 
@@ -196,6 +232,8 @@ public:
             double k = 1.0;
             trackL->dq_target() = k * (-2.0 * pos[1] + pos[0]);
             trackR->dq_target() = k * (-2.0 * pos[1] - pos[0]);
+            // trackL->q() += 0.01;//= k * (-2.0 * pos[1] + pos[0]);
+            // trackR->q() += 0.01;//= k * (-2.0 * pos[1] - pos[0]);
         } else {
             double k = 4.0;
             trackL->dq_target() = k * (-pos[1] + pos[0]);
@@ -204,17 +242,20 @@ public:
 
         if(control_time >= T_S/dt){
             sac->Optimize(sim_loop*T_S, x, x_ref);
-            cout << "u_A = " << sac->get_u_A() << endl;
+            cout << "u_A = " << sac->get_u_A();
             cout << "tau_A:" << sac->get_tau_A() << " duration:" << sac->get_duration() << endl; 
+            // cout << "dq =  "  <<  u(0) - 1.25 * u(1) << " : " << u(0) + 1.25 * u(1)<< endl;
+            // cout << "u =  "  << u(0) << " : " << u(1) << endl;
+            // cout << "x =  "  << x(0) << " : " << x(1) << " : " << x(2) << " : " << x(3) << endl;
             control_time = 0;
         }
         u = sac->Control(control_time*dt);
-        trackL->dq_target() = 1/1.5 * u(0) + 1.25/1.5 * u(1);
-        trackR->dq_target() = 1/1.5 * u(0) - 1.25/1.5 * u(1);
+        trackL->dq_target() = u(0) - 1.25 * u(1);
+        trackR->dq_target() = u(0) + 1.25 * u(1);
 
-        // cout << "dq =  "  << 1/1.5 * u(0) + 1.25/1.5 * u(1) << " : " << 1/1.5 * u(0) - 1.25/1.5 * u(1) << endl;
-        // cout << "u =  "  << u(0) << " : " << u(1) << endl;
-        // cout << "x =  "  << x(0) << " : " << x(1) << " : " << x(2) << " : " << x(3) << endl;
+        // cout << "dq =  "  << (x(2) + u(0)*dt) + 1.25 * (x(3) + u(1)*dt) << " : " << (x(2) + u(0)*dt) - 1.25 * (x(3) + u(1)*dt);
+        cout << "u =  "  << u(0) << " : " << u(1);
+        cout << "x =  "  << x(0) << " : " << x(1) << " : " << x(2) << " : " << x(3) << endl;
         control_time++;
         sim_loop++;
 
@@ -222,18 +263,24 @@ public:
         p_i = T_i.translation();
         R_i = T_i.rotation();
 
-        double vx, vy, w;
-        vx = (p_i(0) - pre_p_i(0))/dt;
-        vx = (p_i(1) - pre_p_i(1))/dt;
+        double w;
+        Vector3d v;
+        v = R_i.transpose() * (p_i - pre_p_i) / dt;
         w = (RtoRad(R_i) - RtoRad(pre_R_i))/dt;
+
+        // cout << "v" <<  v(0) << endl;
+        // cout << "w" <<  w << " : " << RtoRad(R_i) <<  endl;
+
+        
         // cout << "p =  "  << p_i(0) << " : " << p_i(1) << " : " << p_i(2) << endl;
         // cout << "vx:" << vx << "vy:" << vy << "w" << RtoRad(R_i) << "R" << R_i(0,0) << endl;
-        //cout << "t =  " << dt << endl;
-        //cout << trackR->dq() << " " << trackL->dq() << endl;
+        // cout << "t =  " << sim_loop*dt<< endl;
+        // cout << trackR->dq() << " " << trackL->dq() << endl;
+        // cout << "dv =  " << (x(2) - v(0))/dt<< " : " << (x(3) - w)/dt << endl;
         x(0) = p_i(0);
         x(1) = p_i(1);
-        x(2) = vx*R_i(0,0) + vy*R_i(1,0);//( trackR->dq() + trackL->dq()) * 1.50 / 2; // (dq_R + dq_L) * 2piR /2
-        x(3) = w;//( trackR->dq() - trackL->dq()) * 1.50 / (2 * 1.25); // (dq_R - dq_L) * 2piR / (2 + 2piL)
+        x(2) += v(0)*dt;//( trackR->dq() + trackL->dq()) * 1.50 / 2; // (dq_R + dq_L) * 2piR /2
+        x(3) = RtoRad(R_i);//( trackR->dq() - trackL->dq()) * 1.50 / (2 * 1.25); // (dq_R - dq_L) * 2piR / (2 + 2piL)
 
         pre_p_i = p_i;
         pre_R_i = R_i;

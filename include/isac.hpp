@@ -1,14 +1,15 @@
-#ifndef _SAC_
-#define _SAC_
+#ifndef _ISAC_
+#define _ISAC_
 
 #include <iostream>
+#include <vector> 
 #include <Eigen/Dense>
 
 using namespace Eigen;
 
-class SAC{
+class iSAC{
     public:
-    SAC(int x_dim, int u_dim);
+    iSAC(int x_dim, int u_dim);
 
     void Initialize(MatrixXd w1,MatrixXd w2,MatrixXd w3);
     void set_u_limit(double max[], double min[]);
@@ -30,7 +31,7 @@ class SAC{
 
     /*parameter*/
     const double T_S = 0.02; //sampling parameter
-    const int T_HOR = 60; //time horizon
+    const int T_HOR = 100; //time horizon
     const double INF = 100000000.0;
     const double EPS = 1.0e-3;
 
@@ -41,8 +42,10 @@ class SAC{
 
     double calc_J(double t, VectorXd x, VectorXd u, VectorXd x_ref);
     double calc_J_controlled(double t, MatrixXd x, MatrixXd u, VectorXd x_ref);
+
+    VectorXd u_def(double t);
     
-    /*SAC parameter*/
+    /*iSAC parameter*/
     MatrixXd u_nom = VectorXd::Zero(2);//nominal control (often u_nom = 0)
     MatrixXd Q = MatrixXd::Identity(4,4);
     MatrixXd P = MatrixXd::Identity(4,4);
@@ -55,9 +58,13 @@ class SAC{
     double* u_min;
 
     /*variable*/
-    VectorXd u_A = u_nom;
+    VectorXd u_A;
     double tau_A;
     double duration;
+
+    std::vector<VectorXd> u_s;
+    std::vector<double> tau_s;
+    std::vector<double> duration_s;
 };
 
-#endif //_SAC_
+#endif //_iSAC_

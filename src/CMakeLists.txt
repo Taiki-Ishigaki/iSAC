@@ -1,6 +1,7 @@
 add_library(sac
   SHARED
   sac.cpp
+  isac.cpp
   )
 
 target_include_directories(sac
