@@ -6,14 +6,6 @@
 
 using namespace std;
 
-void Mat_size(MatrixXd m){
-    cout << "rows = " << m.rows() << " cols == "<< m.cols() << endl;
-}
-
-void Vec_size(VectorXd v){
-    cout << "size = " << v.size() << endl;
-}
-
 MatrixXd readMat(string file, int rows, int cols) {
 
   ifstream in(file);
